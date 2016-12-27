@@ -3,8 +3,8 @@ package web
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/maddevsio/ariadna/importer"
 	"github.com/julienschmidt/httprouter"
+	"github.com/maddevsio/ariadna/importer"
 	"gopkg.in/olivere/elastic.v3"
 	"net/http"
 	"reflect"

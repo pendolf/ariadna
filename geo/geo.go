@@ -1,7 +1,8 @@
-package importer
+package geo
 
 import (
 	"github.com/kellydunn/golang-geo"
+
 	"math"
 	"strconv"
 )

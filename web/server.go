@@ -1,8 +1,8 @@
 package web
 
 import (
-	"github.com/maddevsio/ariadna/common"
 	"github.com/julienschmidt/httprouter"
+	"github.com/maddevsio/ariadna/common"
 	"gopkg.in/olivere/elastic.v3"
 	"net/http"
 )

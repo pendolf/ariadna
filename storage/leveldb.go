@@ -1,33 +1,45 @@
-package importer
+package storage
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"github.com/qedus/osmpbf"
 	"github.com/syndtr/goleveldb/leveldb"
+	"os"
 	"strconv"
 	"strings"
 )
 
-func OpenLevelDB(path string) *leveldb.DB {
+func OpenFile(filename string) (*os.File, error) {
+	// no file specified
+	if len(filename) < 1 {
+		return nil, errors.New("Invalid file: you must specify a pbf path as arg[1]")
+	}
+	// try to open the file
+	file, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	return file, nil
+}
+
+func OpenLevelDB(path string) (*leveldb.DB, error) {
 	// try to open the db
 	db, err := leveldb.OpenFile(path, nil)
 	if err != nil {
-		Logger.Fatal(err.Error())
+		return nil, err
 	}
-	return db
+	return db, nil
 }
 
 func formatLevelDB(node *osmpbf.Node) (id string, val []byte) {
-
 	stringid := strconv.FormatInt(node.ID, 10)
-
 	var bufval bytes.Buffer
 	bufval.WriteString(strconv.FormatFloat(node.Lat, 'f', 16, 64))
 	bufval.WriteString(":")
 	bufval.WriteString(strconv.FormatFloat(node.Lon, 'f', 16, 64))
 	byteval := []byte(bufval.String())
-
 	return stringid, byteval
 }
 
@@ -38,12 +50,13 @@ func cacheQueue(batch *leveldb.Batch, node *osmpbf.Node) {
 }
 
 // flush a leveldb batch to database and reset batch to 0
-func cacheFlush(db *leveldb.DB, batch *leveldb.Batch) {
+func cacheFlush(db *leveldb.DB, batch *leveldb.Batch) error {
 	err := db.Write(batch, nil)
 	if err != nil {
-		Logger.Fatal(err.Error())
+		return err
 	}
 	batch.Reset()
+	return nil
 }
 
 func cacheLookup(db *leveldb.DB, way *osmpbf.Way) ([]map[string]string, error) {
@@ -55,8 +68,7 @@ func cacheLookup(db *leveldb.DB, way *osmpbf.Way) ([]map[string]string, error) {
 
 		data, err := db.Get([]byte(stringid), nil)
 		if err != nil {
-			Logger.Info(fmt.Sprintf("denormalize failed for way:", way.ID, "node not found:", stringid))
-			return container, err
+			return fmt.Errorf("denormalize failed for way: %d node not found: %s", way.ID, stringid)
 		}
 
 		s := string(data)
