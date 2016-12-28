@@ -4,7 +4,11 @@ import (
 	"fmt"
 	"github.com/dhconnelly/rtreego"
 	"github.com/gen1us2k/go-translit"
+	"github.com/gen1us2k/log"
+	"github.com/maddevsio/ariadna/common"
+	"github.com/maddevsio/ariadna/geo"
 	"gopkg.in/olivere/elastic.v3"
+	"strconv"
 	"strings"
 )
 
@@ -15,11 +19,10 @@ type Search interface {
 type ElasticSearch struct {
 	Search
 	client *elastic.Client
+	logger log.Logger
 }
 
-func NewElasticSearch() (*ElasticSearch, error) {
-	// TODO: Remove hardcoded value
-	elasticHost := ""
+func NewElasticSearch(elasticHost string) (*ElasticSearch, error) {
 	e := &ElasticSearch{}
 	client, err := elastic.NewClient(
 		elastic.SetURL(elasticHost),
@@ -28,6 +31,7 @@ func NewElasticSearch() (*ElasticSearch, error) {
 		return nil, err
 	}
 	e.client = client
+	e.logger = log.NewLogger("elasticsearch")
 	return e, nil
 }
 
@@ -46,10 +50,10 @@ func (es *ElasticSearch) GetCurrentIndexName() (string, error) {
 	return "", nil
 }
 
-func JsonWaysToES(Addresses []JsonWay, CitiesAndTowns []JsonWay, client *elastic.Client) {
-	Logger.Info("Populating elastic search index")
+func (es *ElasticSearch) JsonWaysToES(Addresses []JsonWay, CitiesAndTowns []JsonWay, client *elastic.Client) {
+	es.logger.Info("Populating elastic search index")
 	bulkClient := client.Bulk()
-	Logger.Info("Creating bulk client")
+	es.logger.Info("Creating bulk client")
 	for _, address := range Addresses {
 		cityName, villageName, suburbName, townName := "", "", "", ""
 		var lat, _ = strconv.ParseFloat(address.Centroid["lat"], 64)
@@ -81,7 +85,7 @@ func JsonWaysToES(Addresses []JsonWay, CitiesAndTowns []JsonWay, client *elastic
 		centroid := make(map[string]float64)
 		centroid["lat"] = lat
 		centroid["lon"] = lng
-		name := cleanAddress(address.Tags["name"])
+		name := common.cleanAddress(address.Tags["name"])
 		translated := ""
 
 		if latinre.Match([]byte(name)) {
@@ -140,7 +144,7 @@ func JsonWaysToES(Addresses []JsonWay, CitiesAndTowns []JsonWay, client *elastic
 	}
 }
 
-func JsonNodesToEs(Addresses []JsonNode, CitiesAndTowns []JsonWay, client *elastic.Client) {
+func (es *ElasticSearch) JsonNodesToEs(Addresses []JsonNode, CitiesAndTowns []JsonWay, client *elastic.Client) {
 	Logger.Info("Populating elastic search index with Nodes")
 	bulkClient := client.Bulk()
 	Logger.Info("Created bulk request to elasticsearch")
@@ -228,57 +232,4 @@ func JsonNodesToEs(Addresses []JsonNode, CitiesAndTowns []JsonWay, client *elast
 		Logger.Error(err.Error())
 	}
 
-}
-
-type JsonEsIndex struct {
-	Country           string             `json:"country"`
-	City              string             `json:"city"`
-	Village           string             `json:"village"`
-	Town              string             `json:"town"`
-	District          string             `json:"district"`
-	Street            string             `json:"street"`
-	HouseNumber       string             `json:"housenumber"`
-	Name              string             `json:"name"`
-	OldName           string             `json:"old_name"`
-	HouseName         string             `json:"housename"`
-	PostCode          string             `json:"postcode"`
-	LocalName         string             `json:"local_name"`
-	AlternativeName   string             `json:"alternative_name"`
-	InternationalName string             `json:"international"`
-	NationalName      string             `json:"national"`
-	OfficialName      string             `json:"official"`
-	RegionalName      string             `json:"regional"`
-	ShortName         string             `json:"short_name"`
-	SortingName       string             `json:"sorting"`
-	TranslatedName    string             `json:"translated"`
-	Custom            bool               `json:"custom"`
-	Intersection      bool               `json:"intersection"`
-	Centroid          map[string]float64 `json:"centroid"`
-	Geom              interface{}        `json:"geom"`
-}
-
-type JsonNode struct {
-	ID           int64             `json:"id"`
-	Type         string            `json:"type"`
-	Lat          float64           `json:"lat"`
-	Lon          float64           `json:"lon"`
-	Tags         map[string]string `json:"tags"`
-	Intersection bool              `json:"-"`
-}
-
-type JsonRelation struct {
-	ID       int64               `json:"id"`
-	Type     string              `json:"type"`
-	Tags     map[string]string   `json:"tags"`
-	Centroid map[string]string   `json:"centroid"`
-	Nodes    []map[string]string `json:"nodes"`
-}
-
-type JsonWay struct {
-	ID       int64             `json:"id"`
-	Type     string            `json:"type"`
-	Tags     map[string]string `json:"tags"`
-	Centroid map[string]string `json:"centroid"`
-	Nodes    []*geo.Point      `json:"nodes"`
-	Rect     *rtreego.Rect     `json:"-"`
 }

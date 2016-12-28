@@ -2,10 +2,15 @@ package osm
 
 import (
 	"fmt"
+	"github.com/gen1us2k/log"
+	"github.com/maddevsio/ariadna/config"
+	"github.com/maddevsio/ariadna/storage"
 	"github.com/pkg/errors"
+	"github.com/qedus/osmpbf"
 	"io"
 	"net/http"
 	"os"
+	"runtime"
 )
 
 type (
@@ -14,11 +19,61 @@ type (
 	}
 	OSMWorker struct {
 		OSM
+		decoder *osmpbf.Decoder
+		levelDB *storage.LevelDBStorage
+		logger  log.Logger
 	}
 )
 
-func New() *OSMWorker {
-	return &OSMWorker{}
+func New(conf *config.AriadnaConfig) (*OSMWorker, error) {
+	if len(conf.FileName) < 1 {
+		return nil, errors.New("Invalid file: you must specify a pbf path as arg[1]")
+	}
+	// try to open the file
+	file, err := os.Open(conf.FileName)
+	if err != nil {
+		return nil, err
+	}
+	decoder := osmpbf.NewDecoder(file)
+	err = decoder.Start(runtime.GOMAXPROCS(-1))
+	if err != nil {
+		return nil, err
+	}
+	db, err := storage.NewLevelDBStorage(config.LevelDBPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return &OSMWorker{
+		decoder: decoder,
+		levelDB: db,
+		logger:  log.NewLogger("osm"),
+	}, nil
+}
+func (osm *OSMWorker) Run() error {
+	//batch := &leveldb.Batch{}
+	for {
+		v, err := osm.decoder.Decode()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			osm.logger.Error(err)
+			continue
+		}
+		switch v := v.(type) {
+		case *osmpbf.Node:
+			osm.logger.Info("Node")
+		case *osmpbf.Way:
+			osm.logger.Info("Way")
+		case *osmpbf.Relation:
+			osm.logger.Info("Relation")
+		default:
+			osm.logger.Error("Unknown")
+
+		}
+	}
+	return nil
 }
 
 func (osm *OSMWorker) DownloadFile(source, destination string) error {

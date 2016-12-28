@@ -1,32 +1,31 @@
 package main
 
 import (
+	"fmt"
 	"github.com/maddevsio/ariadna/config"
-	"github.com/maddevsio/ariadna/importer"
-	"github.com/qedus/osmpbf"
+	"github.com/maddevsio/ariadna/osm"
+	"github.com/maddevsio/ariadna/search"
 	"github.com/urfave/cli"
-	"os"
-	"runtime"
 )
 
 var (
-	CitiesAndTowns, Roads []importer.JsonWay
+	CitiesAndTowns, Roads []search.JsonWay
 	configPath            string
 	indexSettingsPath     string
 	customDataPath        string
 )
 
-func getDecoder(file *os.File) *osmpbf.Decoder {
-	decoder := osmpbf.NewDecoder(file)
-	err := decoder.Start(runtime.GOMAXPROCS(-1))
-	if err != nil {
-		importer.Logger.Fatal(err.Error())
-	}
-	return decoder
-}
-
 func main() {
 	app := config.New()
+	app.App().Action = func(ctx cli.Context) error {
+		fmt.Println(app.Get())
+		o, err := osm.New(app.Get())
+		if err != nil {
+			return err
+		}
+		err = o.Run()
+		return err
+	}
 
 	//
 	//app.App().Commands = []cli.Command{
@@ -69,22 +68,22 @@ func main() {
 	//	},
 	//}
 
-	app.App().Before = func(context *cli.Context) error {
-		if configPath == "" {
-			configPath = "config.json"
-		}
-		if indexSettingsPath == "" {
-			indexSettingsPath = "index.json"
-		}
-		if customDataPath == "" {
-			customDataPath = "custom.json"
-		}
-		return nil
-	}
-
-	if err := app.Run(os.Args); err != nil {
-		importer.Logger.Fatal("error on run app, %v", err)
-	}
+	//app.App().Before = func(context *cli.Context) error {
+	//	if configPath == "" {
+	//		configPath = "config.json"
+	//	}
+	//	if indexSettingsPath == "" {
+	//		indexSettingsPath = "index.json"
+	//	}
+	//	if customDataPath == "" {
+	//		customDataPath = "custom.json"
+	//	}
+	//	return nil
+	//}
+	//
+	//if err := app.Run(os.Args); err != nil {
+	//	importer.Logger.Fatal("error on run app, %v", err)
+	//}
 
 }
 

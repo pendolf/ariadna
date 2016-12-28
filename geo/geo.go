@@ -7,6 +7,8 @@ import (
 	"strconv"
 )
 
+type Point struct{}
+
 func computeCentroid(latlons []map[string]string) map[string]string {
 	var points []geo.Point
 	for _, each := range latlons {

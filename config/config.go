@@ -15,10 +15,13 @@ type AriadnaConfig struct {
 	DownloadUrl             string
 	ElasticSearchIndexUrl   string
 	DontImportIntersections bool
+	LevelDBPath             string
 }
 
 var (
 	Version                 string = "dev"
+	LevelDBPath             string
+	FileName                string
 	configPath              string
 	indexSettingsPath       string
 	customDataPath          string
@@ -26,7 +29,6 @@ var (
 	PGConnString            string
 	ElasticSearchHost       string
 	IndexType               string
-	FileName                string
 	DownloadUrl             string
 	LogLevel                string
 	DontImportIntersections bool
@@ -58,6 +60,7 @@ func (c *Configuration) fillConfig() *AriadnaConfig {
 		FileName:                FileName,
 		DownloadUrl:             DownloadUrl,
 		DontImportIntersections: DontImportIntersections,
+		LevelDBPath:             LevelDBPath,
 	}
 }
 
@@ -92,6 +95,11 @@ func (c *Configuration) setupFlags() []cli.Flag {
 			Name:        "custom_data",
 			Usage:       "Custom data file path",
 			Destination: &customDataPath,
+		},
+		cli.StringFlag{
+			Name:        "leveldb",
+			Usage:       "Leveldb database path",
+			Destination: &LevelDBPath,
 		},
 		cli.StringFlag{
 			Name:        "es_index_name",
