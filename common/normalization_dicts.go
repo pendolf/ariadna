@@ -1,4 +1,4 @@
-package importer
+package common
 
 var synonims = map[string]string{
 	"LiveBar":       "Лайвбар",

@@ -1,4 +1,4 @@
-package importer
+package geo
 
 import (
 	"fmt"
