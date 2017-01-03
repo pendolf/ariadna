@@ -1,6 +1,10 @@
 package models
 
-import "github.com/dhconnelly/rtreego"
+import (
+	"github.com/dhconnelly/rtreego"
+	"github.com/maddevsio/ariadna/geo"
+	"math"
+)
 
 type JsonEsIndex struct {
 	Country           string             `json:"country"`
@@ -53,4 +57,29 @@ type JsonWay struct {
 	Centroid map[string]string `json:"centroid"`
 	Nodes    []*geo.Point      `json:"nodes"`
 	Rect     *rtreego.Rect     `json:"-"`
+}
+
+func (way *JsonWay) Bounds() *rtreego.Rect {
+	return way.Rect
+}
+
+func (way *JsonWay) GetXY() (x, y, z, j float64) {
+	var maxlat, minlat, maxlon, minlon float64
+	minlat = float64(99999999999)
+	minlon = float64(99999999999)
+	for _, point := range way.Nodes {
+		x, y := getXY(point.Lat(), point.Lon())
+		maxlat = math.Max(maxlat, x)
+		minlat = math.Min(minlat, x)
+		maxlon = math.Max(maxlon, y)
+		minlon = math.Min(minlon, y)
+	}
+	return maxlat, minlat, maxlon, minlon
+}
+func getXY(lat, lng float64) (float64, float64) {
+	LAT := (lat * math.Pi) / 180
+	LON := (lng * math.Pi) / 180
+	X := 6371 * math.Sin(LAT) * math.Sin(LON)
+	Y := 6371 * math.Cos(LAT)
+	return X, Y
 }

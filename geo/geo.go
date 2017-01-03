@@ -7,7 +7,17 @@ import (
 	"strconv"
 )
 
-type Point struct{}
+type Point struct {
+	X float64
+	Y float64
+}
+
+func (p *Point) Lat() float64 {
+	return p.Y
+}
+func (p *Point) Lon() float64 {
+	return p.X
+}
 
 func computeCentroid(latlons []map[string]string) map[string]string {
 	var points []geo.Point

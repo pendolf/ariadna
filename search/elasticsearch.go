@@ -7,6 +7,7 @@ import (
 	"github.com/gen1us2k/log"
 	"github.com/maddevsio/ariadna/common"
 	"github.com/maddevsio/ariadna/geo"
+	"github.com/maddevsio/ariadna/models"
 	"gopkg.in/olivere/elastic.v3"
 	"strconv"
 	"strings"
@@ -50,7 +51,7 @@ func (es *ElasticSearch) GetCurrentIndexName() (string, error) {
 	return "", nil
 }
 
-func (es *ElasticSearch) JsonWaysToES(Addresses []JsonWay, CitiesAndTowns []JsonWay, client *elastic.Client) {
+func (es *ElasticSearch) JsonWaysToES(Addresses []models.JsonWay, CitiesAndTowns []models.JsonWay, client *elastic.Client) {
 	es.logger.Info("Populating elastic search index")
 	bulkClient := client.Bulk()
 	es.logger.Info("Creating bulk client")
