@@ -79,14 +79,14 @@ func (es *ElasticSearch) JsonWaysToES(Addresses []models.JsonWay, CitiesAndTowns
 		}
 		var points [][][]float64
 		for _, point := range address.Nodes {
-			points = append(points, [][]float64{[]float64{point.Lat(), point.Lng()}})
+			points = append(points, [][]float64{[]float64{point.Lat(), point.Lon()}})
 		}
 
 		pg := gj.NewPolygonFeature(points)
 		centroid := make(map[string]float64)
 		centroid["lat"] = lat
 		centroid["lon"] = lng
-		name := common.cleanAddress(address.Tags["name"])
+		name := common.CleanAddress(address.Tags["name"])
 		translated := ""
 
 		if latinre.Match([]byte(name)) {
@@ -105,13 +105,13 @@ func (es *ElasticSearch) JsonWaysToES(Addresses []models.JsonWay, CitiesAndTowns
 			word["trans"] = translated
 		}
 		housenumber := translit.Translit(address.Tags["addr:housenumber"])
-		marshall := JsonEsIndex{
+		marshall := models.JsonEsIndex{
 			Country:           "KG",
 			City:              cityName,
 			Village:           villageName,
 			Town:              townName,
 			District:          suburbName,
-			Street:            cleanAddress(address.Tags["addr:street"]),
+			Street:            common.CleanAddress(address.Tags["addr:street"]),
 			HouseNumber:       housenumber,
 			Name:              name,
 			OldName:           address.Tags["old_name"],
@@ -137,18 +137,15 @@ func (es *ElasticSearch) JsonWaysToES(Addresses []models.JsonWay, CitiesAndTowns
 			Doc(marshall)
 		bulkClient = bulkClient.Add(index)
 	}
-	Logger.Info("Starting to insert many data to elasticsearch")
+	es.logger.Info("Starting to insert many data to elasticsearch")
 	_, err := bulkClient.Do()
-	Logger.Info("Data insert")
 	if err != nil {
-		Logger.Error(err.Error())
+		es.logger.Error(err.Error())
 	}
 }
 
-func (es *ElasticSearch) JsonNodesToEs(Addresses []JsonNode, CitiesAndTowns []JsonWay, client *elastic.Client) {
-	Logger.Info("Populating elastic search index with Nodes")
+func (es *ElasticSearch) JsonNodesToEs(Addresses []models.JsonNode, CitiesAndTowns []models.JsonWay, client *elastic.Client) {
 	bulkClient := client.Bulk()
-	Logger.Info("Created bulk request to elasticsearch")
 	for _, address := range Addresses {
 		cityName, villageName, suburbName, townName := "", "", "", ""
 		for _, city := range CitiesAndTowns {
@@ -173,7 +170,7 @@ func (es *ElasticSearch) JsonNodesToEs(Addresses []JsonNode, CitiesAndTowns []Js
 		centroid := make(map[string]float64)
 		centroid["lat"] = address.Lat
 		centroid["lon"] = address.Lon
-		name := cleanAddress(address.Tags["name"])
+		name := common.CleanAddress(address.Tags["name"])
 		translated := ""
 		if latinre.Match([]byte(name)) {
 			word := make(map[string]string)
@@ -192,13 +189,13 @@ func (es *ElasticSearch) JsonNodesToEs(Addresses []JsonNode, CitiesAndTowns []Js
 		}
 		housenumber := translit.Translit(address.Tags["addr:housenumber"])
 
-		marshall := JsonEsIndex{
+		marshall := models.JsonEsIndex{
 			Country:           "KG",
 			City:              cityName,
 			Village:           villageName,
 			Town:              townName,
 			District:          suburbName,
-			Street:            cleanAddress(address.Tags["addr:street"]),
+			Street:            common.CleanAddress(address.Tags["addr:street"]),
 			HouseNumber:       housenumber,
 			Name:              name,
 			TranslatedName:    translated,
@@ -226,11 +223,9 @@ func (es *ElasticSearch) JsonNodesToEs(Addresses []JsonNode, CitiesAndTowns []Js
 			Doc(marshall)
 		bulkClient = bulkClient.Add(index)
 	}
-	Logger.Info("Started to bulk insert to elasticsearch")
 	_, err := bulkClient.Do()
-	Logger.Info("Data inserted")
 	if err != nil {
-		Logger.Error(err.Error())
+		es.logger.Error(err.Error())
 	}
 
 }

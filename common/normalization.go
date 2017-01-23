@@ -9,11 +9,10 @@ import (
 var latinre *regexp.Regexp
 
 func init() {
-	Logger.Info("Initializing normalization")
 	latinre, _ = regexp.Compile("^[a-zA-Z]")
 }
 
-func normalizeAddress(address string) string {
+func NormalizeAddress(address string) string {
 	if strings.Contains(address, "улица") {
 		return fmt.Sprintf("улица %s", strings.Replace(address, "улица", "", -1))
 
@@ -28,7 +27,7 @@ func normalizeAddress(address string) string {
 	}
 	return address
 }
-func cleanAddress(address string) string {
+func CleanAddress(address string) string {
 	if strings.Contains(address, "улица") {
 		return strings.Replace(address, "улица", "", -1)
 

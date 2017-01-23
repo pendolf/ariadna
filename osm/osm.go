@@ -2,15 +2,21 @@ package osm
 
 import (
 	"fmt"
-	"github.com/gen1us2k/log"
-	"github.com/maddevsio/ariadna/config"
-	"github.com/maddevsio/ariadna/storage"
-	"github.com/pkg/errors"
-	"github.com/qedus/osmpbf"
 	"io"
 	"net/http"
 	"os"
 	"runtime"
+	"strings"
+
+	"github.com/gen1us2k/log"
+	"github.com/maddevsio/ariadna/config"
+	"github.com/maddevsio/ariadna/geo"
+	"github.com/maddevsio/ariadna/models"
+	"github.com/maddevsio/ariadna/storage"
+	"github.com/pkg/errors"
+	"github.com/qedus/osmpbf"
+	"github.com/syndtr/goleveldb/leveldb"
+	"strconv"
 )
 
 type (
@@ -22,6 +28,8 @@ type (
 		decoder *osmpbf.Decoder
 		levelDB *storage.LevelDBStorage
 		logger  log.Logger
+		batch   *leveldb.Batch
+		tags    map[string][]string
 	}
 )
 
@@ -47,14 +55,19 @@ func New(conf *config.AriadnaConfig) (*OSMWorker, error) {
 	return &OSMWorker{
 		decoder: decoder,
 		levelDB: db,
+		batch:   &leveldb.Batch{},
 		logger:  log.NewLogger("osm"),
 	}, nil
 }
+func (osm *OSMWorker) SetTags(tags map[string][]string) {
+	osm.tags = tags
+}
 func (osm *OSMWorker) Run() error {
-	//batch := &leveldb.Batch{}
+
 	for {
 		v, err := osm.decoder.Decode()
 		if err == io.EOF {
+			osm.logger.Info("got end of file. Breaking")
 			break
 		}
 		if err != nil {
@@ -64,8 +77,10 @@ func (osm *OSMWorker) Run() error {
 		switch v := v.(type) {
 		case *osmpbf.Node:
 			osm.logger.Info("Node")
+			osm.onNode(v)
 		case *osmpbf.Way:
 			osm.logger.Info("Way")
+			osm.onWay(v)
 		case *osmpbf.Relation:
 			osm.logger.Info("Relation")
 		default:
@@ -75,7 +90,103 @@ func (osm *OSMWorker) Run() error {
 	}
 	return nil
 }
+func (osm *OSMWorker) onNode(node *osmpbf.Node) {
+	osm.levelDB.CacheQueue(osm.batch, node)
+	// TODO: Remove hardcoded value
+	if osm.batch.Len() > 50000 {
+		osm.levelDB.CacheFlush(osm.batch)
+	}
+	if !osm.hasTags(node.Tags) {
+		return
+	}
+	node.Tags = osm.trimTags(node.Tags)
+	if osm.containsValidTags(node.Tags, osm.tags) {
+		// TODO: Process it
+		_ = osm.toJSONNode(node)
+	}
 
+}
+func (osm *OSMWorker) onWay(way *osmpbf.Way) {
+	// TODO: Remove hardcoded value
+	if osm.batch.Len() > 1 {
+		osm.levelDB.CacheFlush(osm.batch)
+	}
+	if !osm.hasTags(way.Tags) {
+		return
+	}
+	way.Tags = osm.trimTags(way.Tags)
+	if osm.containsValidTags(way.Tags, osm.tags) {
+		latlons, err := osm.levelDB.CacheLookup(way)
+		if err != nil {
+			return
+		}
+		var centroid = geo.ComputeCentroid(latlons)
+		// TODO: Handle ways
+		_ = osm.toJsonWay(way, latlons, centroid)
+	}
+}
+func (osm *OSMWorker) toJSONNode(v *osmpbf.Node) models.JsonNode {
+	return models.JsonNode{}
+}
+func (osm *OSMWorker) toJsonWay(v *osmpbf.Way, latlons []map[string]string, centroid map[string]string) models.JsonWay {
+	var points []*geo.Point
+	for _, latlon := range latlons {
+		var lat, _ = strconv.ParseFloat(latlon["lat"], 64)
+		var lng, _ = strconv.ParseFloat(latlon["lon"], 64)
+		points = append(points, geo.NewPoint(lat, lng))
+	}
+	return models.JsonWay{
+		ID:       v.ID,
+		Type:     "way",
+		Tags:     v.Tags,
+		Centroid: centroid,
+		Nodes:    points,
+	}
+}
+func (osm *OSMWorker) containsValidTags(tags map[string]string, group map[string][]string) bool {
+	for _, list := range group {
+		if osm.matchTagsAgainstCompulsoryTagList(tags, list) {
+			return true
+		}
+	}
+	return false
+}
+func (osm *OSMWorker) matchTagsAgainstCompulsoryTagList(tags map[string]string, tagList []string) bool {
+	for _, name := range tagList {
+
+		feature := strings.Split(name, "~")
+		foundVal, foundKey := tags[feature[0]]
+
+		// key check
+		if !foundKey {
+			return false
+		}
+
+		// value check
+		if len(feature) > 1 {
+			if foundVal != feature[1] {
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
+func (osm *OSMWorker) hasTags(tags map[string]string) bool {
+	n := len(tags)
+	if n == 0 {
+		return false
+	}
+	return true
+}
+func (osm *OSMWorker) trimTags(tags map[string]string) map[string]string {
+	trimmed := make(map[string]string)
+	for k, v := range tags {
+		trimmed[strings.TrimSpace(k)] = strings.TrimSpace(v)
+	}
+	return trimmed
+}
 func (osm *OSMWorker) DownloadFile(source, destination string) error {
 	err := osm.downloadFile(source, destination)
 	return err
@@ -110,7 +221,7 @@ func (osm *OSMWorker) downloadFile(source, destination string) error {
 	}
 	defer response.Body.Close()
 
-	_, err := io.Copy(output, response.Body)
+	_, err = io.Copy(output, response.Body)
 
 	if err != nil {
 		return errors.Wrap(err, "Error while copying data")
