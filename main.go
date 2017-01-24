@@ -1,15 +1,15 @@
 package main
 
 import (
-	"fmt"
+	"github.com/gen1us2k/log"
 	"github.com/maddevsio/ariadna/config"
+	"github.com/maddevsio/ariadna/models"
 	"github.com/maddevsio/ariadna/osm"
-	"github.com/maddevsio/ariadna/search"
-	"github.com/urfave/cli"
+	"gopkg.in/urfave/cli.v1"
 )
 
 var (
-	CitiesAndTowns, Roads []search.JsonWay
+	CitiesAndTowns, Roads []models.JsonWay
 	configPath            string
 	indexSettingsPath     string
 	customDataPath        string
@@ -17,14 +17,28 @@ var (
 
 func main() {
 	app := config.New()
-	app.App().Action = func(ctx cli.Context) error {
-		fmt.Println(app.Get())
+	app.App().Action = func(ctx *cli.Context) error {
 		o, err := osm.New(app.Get())
 		if err != nil {
 			return err
 		}
-		err = o.Run()
+		err = o.DownloadFile()
+		log.Info("Starting to download file")
+		if err != nil {
+			return err
+		}
+
+		//	err := updater.DownloadOSMFile(common.AC.DownloadUrl, common.AC.FileName)
+		//	if err != nil {
+		//		importer.Logger.Fatal(err.Error())
+		//	}
+		//	actionImport(ctx)
+		//	return nil
+
 		return err
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(err)
 	}
 
 	//

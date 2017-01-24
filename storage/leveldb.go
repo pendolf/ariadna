@@ -2,13 +2,12 @@ package storage
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
-	"github.com/qedus/osmpbf"
-	"github.com/syndtr/goleveldb/leveldb"
-	"os"
 	"strconv"
 	"strings"
+
+	"github.com/qedus/osmpbf"
+	"github.com/syndtr/goleveldb/leveldb"
 )
 
 type LevelDBStorage struct {

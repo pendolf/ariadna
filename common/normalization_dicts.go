@@ -1,6 +1,6 @@
 package common
 
-var synonims = map[string]string{
+var Synonims = map[string]string{
 	"LiveBar":       "Лайвбар",
 	"Lounge":        "Лаундж",
 	"Hyatt":         "Хаят",

@@ -6,10 +6,10 @@ import (
 	"strings"
 )
 
-var latinre *regexp.Regexp
+var Latinre *regexp.Regexp
 
 func init() {
-	latinre, _ = regexp.Compile("^[a-zA-Z]")
+	Latinre, _ = regexp.Compile("^[a-zA-Z]")
 }
 
 func NormalizeAddress(address string) string {

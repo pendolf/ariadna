@@ -5,7 +5,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"runtime"
 	"strings"
 
 	"github.com/gen1us2k/log"
@@ -25,11 +24,12 @@ type (
 	}
 	OSMWorker struct {
 		OSM
-		decoder *osmpbf.Decoder
-		levelDB *storage.LevelDBStorage
-		logger  log.Logger
-		batch   *leveldb.Batch
-		tags    map[string][]string
+		decoder   *osmpbf.Decoder
+		levelDB   *storage.LevelDBStorage
+		logger    log.Logger
+		batch     *leveldb.Batch
+		tags      map[string][]string
+		appConfig *config.AriadnaConfig
 	}
 )
 
@@ -37,26 +37,27 @@ func New(conf *config.AriadnaConfig) (*OSMWorker, error) {
 	if len(conf.FileName) < 1 {
 		return nil, errors.New("Invalid file: you must specify a pbf path as arg[1]")
 	}
-	// try to open the file
-	file, err := os.Open(conf.FileName)
-	if err != nil {
-		return nil, err
-	}
-	decoder := osmpbf.NewDecoder(file)
-	err = decoder.Start(runtime.GOMAXPROCS(-1))
-	if err != nil {
-		return nil, err
-	}
+	//// try to open the file
+	//file, err := os.Open(conf.FileName)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//decoder := osmpbf.NewDecoder(file)
+	//err = decoder.Start(runtime.GOMAXPROCS(-1))
+	//if err != nil {
+	//	return nil, err
+	//}
 	db, err := storage.NewLevelDBStorage(config.LevelDBPath)
 	if err != nil {
 		return nil, err
 	}
 
 	return &OSMWorker{
-		decoder: decoder,
-		levelDB: db,
-		batch:   &leveldb.Batch{},
-		logger:  log.NewLogger("osm"),
+		//decoder:   decoder,
+		levelDB:   db,
+		batch:     &leveldb.Batch{},
+		appConfig: conf,
+		logger:    log.NewLogger("osm"),
 	}, nil
 }
 func (osm *OSMWorker) SetTags(tags map[string][]string) {
@@ -187,8 +188,10 @@ func (osm *OSMWorker) trimTags(tags map[string]string) map[string]string {
 	}
 	return trimmed
 }
-func (osm *OSMWorker) DownloadFile(source, destination string) error {
-	err := osm.downloadFile(source, destination)
+func (osm *OSMWorker) DownloadFile() error {
+	osm.logger.Info("Downloading file")
+	fmt.Println("Downloading file")
+	err := osm.downloadFile(osm.appConfig.DownloadUrl, osm.appConfig.FileName)
 	return err
 }
 
