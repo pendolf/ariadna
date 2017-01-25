@@ -15,6 +15,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/qedus/osmpbf"
 	"github.com/syndtr/goleveldb/leveldb"
+	"runtime"
 	"strconv"
 )
 
@@ -24,12 +25,14 @@ type (
 	}
 	OSMWorker struct {
 		OSM
-		decoder   *osmpbf.Decoder
-		levelDB   *storage.LevelDBStorage
-		logger    log.Logger
-		batch     *leveldb.Batch
-		tags      map[string][]string
-		appConfig *config.AriadnaConfig
+		decoder    *osmpbf.Decoder
+		levelDB    *storage.LevelDBStorage
+		logger     log.Logger
+		batch      *leveldb.Batch
+		tags       map[string][]string
+		appConfig  *config.AriadnaConfig
+		findCities bool
+		cities     []models.JsonWay
 	}
 )
 
@@ -38,15 +41,7 @@ func New(conf *config.AriadnaConfig) (*OSMWorker, error) {
 		return nil, errors.New("Invalid file: you must specify a pbf path as arg[1]")
 	}
 	//// try to open the file
-	//file, err := os.Open(conf.FileName)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//decoder := osmpbf.NewDecoder(file)
-	//err = decoder.Start(runtime.GOMAXPROCS(-1))
-	//if err != nil {
-	//	return nil, err
-	//}
+
 	db, err := storage.NewLevelDBStorage(config.LevelDBPath)
 	if err != nil {
 		return nil, err
@@ -60,8 +55,19 @@ func New(conf *config.AriadnaConfig) (*OSMWorker, error) {
 		logger:    log.NewLogger("osm"),
 	}, nil
 }
-func (osm *OSMWorker) SetTags(tags map[string][]string) {
+func (osm *OSMWorker) Prepare(tags map[string][]string) error {
 	osm.tags = tags
+	file, err := os.Open(osm.appConfig.FileName)
+	if err != nil {
+		return err
+	}
+	decoder := osmpbf.NewDecoder(file)
+	err = decoder.Start(runtime.GOMAXPROCS(-1))
+	if err != nil {
+		return err
+	}
+	osm.decoder = decoder
+	return osm.Run()
 }
 func (osm *OSMWorker) Run() error {
 
@@ -91,6 +97,7 @@ func (osm *OSMWorker) Run() error {
 	}
 	return nil
 }
+
 func (osm *OSMWorker) onNode(node *osmpbf.Node) {
 	osm.levelDB.CacheQueue(osm.batch, node)
 	// TODO: Remove hardcoded value
@@ -123,7 +130,10 @@ func (osm *OSMWorker) onWay(way *osmpbf.Way) {
 		}
 		var centroid = geo.ComputeCentroid(latlons)
 		// TODO: Handle ways
-		_ = osm.toJsonWay(way, latlons, centroid)
+		w := osm.toJsonWay(way, latlons, centroid)
+		if osm.findCities {
+			osm.cities = append(osm.cities, w)
+		}
 	}
 }
 func (osm *OSMWorker) toJSONNode(v *osmpbf.Node) models.JsonNode {

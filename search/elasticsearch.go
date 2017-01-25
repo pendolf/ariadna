@@ -2,6 +2,9 @@ package search
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
+
 	"github.com/gen1us2k/go-translit"
 	"github.com/gen1us2k/log"
 	"github.com/maddevsio/ariadna/common"
@@ -9,8 +12,6 @@ import (
 	"github.com/maddevsio/ariadna/geo"
 	"github.com/maddevsio/ariadna/models"
 	"gopkg.in/olivere/elastic.v3"
-	"strconv"
-	"strings"
 )
 
 type Search interface {

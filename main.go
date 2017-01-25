@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/gen1us2k/log"
+	"github.com/maddevsio/ariadna/common"
 	"github.com/maddevsio/ariadna/config"
 	"github.com/maddevsio/ariadna/models"
 	"github.com/maddevsio/ariadna/osm"
@@ -27,6 +28,8 @@ func main() {
 		if err != nil {
 			return err
 		}
+		tags := common.BuildTags("place~city,place~village,place~suburb,place~town,place~neighbourhood")
+		err = o.Prepare(tags)
 
 		//	err := updater.DownloadOSMFile(common.AC.DownloadUrl, common.AC.FileName)
 		//	if err != nil {
