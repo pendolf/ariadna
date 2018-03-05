@@ -1,49 +1,9 @@
-[![Go Report Card](http://goreportcard.com/badge/gen1us2k/ariadna)](http://goreportcard.com/report/gen1us2k/ariadna)
-### Ariadna
-Is the open-source geocoder built on top of ElasticSearch for fast geocoding and provides better search for CIS countries
-### Work in progress. This may not work in your country. You are welcome for any issues, advices or other feedback
-
-###What's a geocoder do anyway?
-
-Geocoding is the process of transforming input text, such as an address, or a name of a place—to a location on the earth's surface.
-
-![Ariadna](https://raw.githubusercontent.com/maddevsio/ariadna/master/img/geo.gif)
-
-
-It able to search:
-* Street + housenumber
-* Road intersections
-* Points of interest
-* Microdictricts
-* Addresses in microdistricts
-* Nearest villages and towns
-* Search with auto replace from dictionary
-* Reverse geocoding
-
-### ... and a reverse geocoder, what's that?
-
-Reverse geocoding is the opposite, it transforms your current geographic location in to a list of places nearby.
-![Reverse](https://raw.githubusercontent.com/maddevsio/ariadna/master/img/reverse.gif)
-### Prerequisites
-
-* ElasticSearch
-* PostgreSQL
-
 Ariadna consists of 3 parts:
 * Importer: OSM data importer to elastic search
 * Updater: Download and import data
 * WebUI for searching data
 * Custom importer
 
-### Install
-
-
-```
-  git clone git@github.com:gen1us2k/osm-geogoder.git
-  cd osm-geogoder
-  make depends
-  make
-```
 ### Configure
 
 ```
@@ -67,47 +27,6 @@ GLOBAL OPTIONS:
    --dont_import_intersections                                                          if checked, then ariadna won't import intersections [$ARIADNA_DONT_IMPORT_INTERSECTIONS]
    --help, -h                                                                           show help
    --version, -v                                                                        print the version
-```
-Elastic search index settings
-```
-cp index.json.example index.json
-```
-Change it for you
-```
-{
-    "settings": {
-        "analysis": {
-            "filter": {
-                "map_poi_filter": {
-                    "type": "synonym",
-                    "synonyms": [
-                    	# all synonyms goes here
-                    ]
-                }
-            },
-            "analyzer": {
-                "map_synonyms": {
-                    "tokenizer": "standard",
-                    "filter": [
-                        "lowercase",
-                        "map_poi_filter"
-                    ]
-                }
-            }
-        }
-    },
-    "mappings":
-        {"address":
-            {"properties":
-                {
-                    "centroid": {
-                        "type": "geo_point" # need to reverse geocoding
-                    }
-
-                }
-            }
-        }
-}
 ```
 
 ### Usage
@@ -136,39 +55,9 @@ There is http api for geocode and reverse geocode
 ### Docker
 To start Postgres, Elasticsearch and Ariadna run
 ```
-$ cd ariadna-docker
-$ cp ../index.json.example ./index.json
+# edit index files if need
 $ docker-compose up -d
-$ docker-compose run --rm ariadna /go/bin/ariadna update
+$ docker-compose run --rm ariadna-export-suggest
+$ docker-compose run --rm ariadna-export-address
 ```
-Open http://localhost:8080 in your browser and enjoy
-
-### TODO
-* Remove pg for searching intersections
-* Test search for other countries
-* Write some tests
-
-## Roadmap
-
-* Better code design
-* Drop postgres dependency for searching crossroads
-* Autocomplete
-* More intelligent memory usage
-* Add more sources for geocoding
-
-
-### Contributing
-1. Fork it ( https://github.com/maddevsio/ariadna/fork )
-2. Create your feature branch (`git checkout -b my-new-feature`)
-3. Commit your changes (`git commit -am 'Add some feature'`)
-4. Push to the branch (`git push origin my-new-feature`)
-5. Create a new Pull Request
-
-
-### Pr, issues
-You're welcome.
-
-### NOTE
-Tested only for my city and my country.
-
 
