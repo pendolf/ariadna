@@ -3,10 +3,11 @@ package importer
 import (
 	"bytes"
 	"fmt"
-	"github.com/qedus/osmpbf"
-	"github.com/syndtr/goleveldb/leveldb"
 	"strconv"
 	"strings"
+
+	"github.com/qedus/osmpbf"
+	"github.com/syndtr/goleveldb/leveldb"
 )
 
 func OpenLevelDB(path string) *leveldb.DB {

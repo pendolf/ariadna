@@ -1,7 +1,7 @@
 package importer
 
 import (
-	log "github.com/maddevsio/ariadna/logger"
+	log "github.com/pendolf/ariadna/logger"
 )
 
 var Logger log.Logger

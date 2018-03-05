@@ -2,11 +2,12 @@ package importer
 
 import (
 	"fmt"
+	"io"
+	"strconv"
+
 	"github.com/kellydunn/golang-geo"
 	"github.com/qedus/osmpbf"
 	"github.com/syndtr/goleveldb/leveldb"
-	"io"
-	"strconv"
 )
 
 func Run(d *osmpbf.Decoder, db *leveldb.DB, tags map[string][]string) ([]JsonWay, []JsonNode) {

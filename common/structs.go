@@ -1,8 +1,6 @@
 package common
 
-var (
-	AC AppConfig
-)
+var AC AppConfig
 
 type AppConfig struct {
 	IndexName               string
@@ -13,4 +11,6 @@ type AppConfig struct {
 	DownloadUrl             string
 	ElasticSearchIndexUrl   string
 	DontImportIntersections bool
+	ESUsername              string
+	ESPassword              string
 }

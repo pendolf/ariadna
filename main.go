@@ -1,21 +1,25 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/codegangsta/cli"
-	"github.com/maddevsio/ariadna/common"
-	"github.com/maddevsio/ariadna/importer"
-	"github.com/maddevsio/ariadna/updater"
-	"github.com/maddevsio/ariadna/web"
-	"github.com/qedus/osmpbf"
-	"gopkg.in/olivere/elastic.v3"
 	"io/ioutil"
+	"log"
 	"os"
 	"runtime"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/olivere/elastic"
+	"github.com/qedus/osmpbf"
+	"gopkg.in/urfave/cli.v1"
+
+	"github.com/pendolf/ariadna/common"
+	"github.com/pendolf/ariadna/importer"
+	"github.com/pendolf/ariadna/updater"
+	"github.com/pendolf/ariadna/web"
 )
 
 var (
@@ -31,6 +35,8 @@ var (
 	FileName                string
 	DownloadUrl             string
 	DontImportIntersections bool
+	ESUsername              string
+	ESPassword              string
 )
 
 func getDecoder(file *os.File) *osmpbf.Decoder {
@@ -43,7 +49,7 @@ func getDecoder(file *os.File) *osmpbf.Decoder {
 }
 
 func getCurrentIndexName(client *elastic.Client) (string, error) {
-	res, err := client.Aliases().Index("_all").Do()
+	res, err := client.Aliases().Index("_all").Do(context.Background())
 	if err != nil {
 		return "", err
 	}
@@ -164,6 +170,19 @@ func main() {
 			Destination: &DontImportIntersections,
 			EnvVar:      "ARIADNA_DONT_IMPORT_INTERSECTIONS",
 		},
+		cli.StringFlag{
+			Name:        "es_username",
+			Usage:       "ES base auth username",
+			Destination: &ESUsername,
+			Value:       "elastic",
+			EnvVar:      "ES_USERNAME",
+		},
+		cli.StringFlag{
+			Name:        "es_password",
+			Usage:       "ES base auth password",
+			Destination: &ESPassword,
+			EnvVar:      "ES_PASSWORD",
+		},
 	}
 
 	app.Before = func(context *cli.Context) error {
@@ -184,6 +203,8 @@ func main() {
 			FileName:                FileName,
 			DownloadUrl:             DownloadUrl,
 			DontImportIntersections: DontImportIntersections,
+			ESUsername:              ESUsername,
+			ESPassword:              ESPassword,
 		}
 		return nil
 	}
@@ -199,6 +220,7 @@ func actionImport(ctx *cli.Context) error {
 	indexSettings, err := ioutil.ReadFile(indexSettingsPath)
 	if err != nil {
 		importer.Logger.Fatal(err.Error())
+		log.Fatalf("can't read index settings %v", err)
 	}
 	db := importer.OpenLevelDB("db")
 	defer db.Close()
@@ -209,6 +231,7 @@ func actionImport(ctx *cli.Context) error {
 
 	client, err := elastic.NewClient(
 		elastic.SetURL(common.AC.ElasticSearchHost),
+		elastic.SetBasicAuth(common.AC.ESUsername, common.AC.ESPassword),
 	)
 
 	if err != nil {
@@ -216,8 +239,8 @@ func actionImport(ctx *cli.Context) error {
 	}
 
 	indexVersion := fmt.Sprintf("%s_%d", common.AC.IndexName, time.Now().Unix())
-	importer.Logger.Info("Creating index with name %s", indexVersion)
-	_, err = client.CreateIndex(indexVersion).BodyString(string(indexSettings)).Do()
+	importer.Logger.Info("Creating index %s", indexVersion)
+	_, err = client.CreateIndex(indexVersion).BodyString(string(indexSettings)).Do(context.Background())
 
 	common.AC.ElasticSearchIndexUrl = indexVersion
 
@@ -255,21 +278,21 @@ func actionImport(ctx *cli.Context) error {
 	}
 
 	importer.Logger.Info("Removing indices from alias")
-	_, err = client.Alias().Add(indexVersion, common.AC.IndexName).Do()
+	_, err = client.Alias().Add(indexVersion, common.AC.IndexName).Do(context.Background())
 	if err != nil {
 		return err
 	}
-	res, err := client.Aliases().Index("_all").Do()
+	res, err := client.Aliases().Index("_all").Do(context.Background())
 	if err != nil {
 		return err
 	}
 	for _, index := range res.IndicesByAlias(common.AC.IndexName) {
 		if strings.HasPrefix(index, common.AC.IndexName) && index != indexVersion {
-			_, err = client.Alias().Remove(index, common.AC.IndexName).Do()
+			_, err = client.Alias().Remove(index, common.AC.IndexName).Do(context.Background())
 			if err != nil {
 				importer.Logger.Error("Failed to delete index alias: %s", err.Error())
 			}
-			_, err = client.DeleteIndex(index).Do()
+			_, err = client.DeleteIndex(index).Do(context.Background())
 			if err != nil {
 				importer.Logger.Error("Failed to delete index: %s", err.Error())
 			}
@@ -290,6 +313,7 @@ func actionUpdate(ctx *cli.Context) error {
 func actionTest(ctx *cli.Context) error {
 	client, err := elastic.NewClient(
 		elastic.SetURL(common.AC.ElasticSearchHost),
+		elastic.SetBasicAuth(common.AC.ESUsername, common.AC.ESPassword),
 	)
 	if err != nil {
 		return err
@@ -331,6 +355,7 @@ func actionCustom(ctx *cli.Context) error {
 
 	client, err := elastic.NewClient(
 		elastic.SetURL(common.AC.ElasticSearchHost),
+		elastic.SetBasicAuth(common.AC.ESUsername, common.AC.ESPassword),
 	)
 	bulkClient := client.Bulk()
 	indexVersion, err := getCurrentIndexName(client)
@@ -353,7 +378,7 @@ func actionCustom(ctx *cli.Context) error {
 			Doc(marshall)
 		bulkClient = bulkClient.Add(index)
 	}
-	_, err = bulkClient.Do()
+	_, err = bulkClient.Do(context.Background())
 	if err != nil {
 		importer.Logger.Error(err.Error())
 	}
@@ -370,6 +395,7 @@ func actionIntersection(ctx *cli.Context) error {
 
 	client, err := elastic.NewClient(
 		elastic.SetURL(common.AC.ElasticSearchHost),
+		elastic.SetBasicAuth(common.AC.ESUsername, common.AC.ESPassword),
 	)
 
 	if err != nil {
@@ -379,7 +405,7 @@ func actionIntersection(ctx *cli.Context) error {
 	indexVersion, err := getCurrentIndexName(client)
 
 	common.AC.ElasticSearchIndexUrl = indexVersion
-	importer.Logger.Info("Creating index with name %s", common.AC.ElasticSearchIndexUrl)
+	importer.Logger.Info("Index %s", common.AC.ElasticSearchIndexUrl)
 
 	importer.Logger.Info("Searching cities, villages, towns and districts")
 	tags := importer.BuildTags("place~city,place~village,place~suburb,place~town,place~neighbourhood")

@@ -1,14 +1,16 @@
 package web
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/maddevsio/ariadna/importer"
-	"github.com/julienschmidt/httprouter"
-	"gopkg.in/olivere/elastic.v3"
 	"net/http"
 	"reflect"
 	"strconv"
+
+	"github.com/julienschmidt/httprouter"
+	"github.com/olivere/elastic"
+	"github.com/pendolf/ariadna/importer"
 )
 
 type BadRequest struct {
@@ -25,7 +27,7 @@ func geoCoder(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	qs.Field("town")
 	qs.Field("city")
 	qs.Analyzer("map_synonyms")
-	result, err := es.Search().Index("addresses").Query(qs).Do()
+	result, err := es.Search().Index("addresses").Query(qs).Do(context.Background())
 	if err != nil {
 		resp, _ := json.Marshal(BadRequest{err.Error()})
 		w.Write(resp)
@@ -50,7 +52,7 @@ func reverseGeoCode(w http.ResponseWriter, r *http.Request, ps httprouter.Params
 	qs.Distance("10m")
 	qs.QueryName("filtered")
 
-	result, err := es.Search().Index("addresses").Query(qs).Do()
+	result, err := es.Search().Index("addresses").Query(qs).Do(context.Background())
 	if err != nil {
 		resp, _ := json.Marshal(BadRequest{err.Error()})
 		w.Write(resp)

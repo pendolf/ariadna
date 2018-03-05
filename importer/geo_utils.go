@@ -1,9 +1,10 @@
 package importer
 
 import (
-	"github.com/kellydunn/golang-geo"
 	"math"
 	"strconv"
+
+	"github.com/kellydunn/golang-geo"
 )
 
 func computeCentroid(latlons []map[string]string) map[string]string {

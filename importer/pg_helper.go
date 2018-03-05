@@ -3,8 +3,9 @@ package importer
 import (
 	"database/sql"
 	"fmt"
-	"github.com/maddevsio/ariadna/common"
 	"strconv"
+
+	"github.com/pendolf/ariadna/common"
 )
 
 func RoadsToPg(Roads []JsonWay) {
