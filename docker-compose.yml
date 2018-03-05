@@ -1,0 +1,83 @@
+version: '2'
+services:
+
+  ariadna-export-suggest:
+    build:
+      context: .
+    command: ariadna update
+    restart: always
+    volumes:
+      - ./suggest.json:/go/src/github.com/pendolf/ariadna/index.json
+    depends_on:
+      - db
+      - elasticsearch
+    environment:
+      - ARIADNA_ES_INDEX_NAME=streets
+      - ARIADNA_INDEX_TYPE=streets
+      - ARIADNA_PG_CONN_URL=host=db user=ariadna password=ariadna dbname=ariadna sslmode=disable
+      - ARIADNA_ES_HOST=http://elasticsearch:9200
+      - ARIADNA_DOWNLOAD_URL=http://download.geofabrik.de/asia/kyrgyzstan-latest.osm.pbf
+      - ARIADNA_FILE_NAME=kyrgyzstan-latest.osm.pbf
+    networks:
+      - ariadna-local
+
+  ariadna-export-address:
+    build:
+      context: .
+    command: ariadna update
+    restart: always
+    volumes:
+      - ./index.json:/go/src/github.com/pendolf/ariadna/index.json
+    depends_on:
+      - db
+      - elasticsearch
+    environment:
+      - ARIADNA_ES_INDEX_NAME=addresses
+      - ARIADNA_INDEX_TYPE=address
+      - ARIADNA_PG_CONN_URL=host=db user=ariadna password=ariadna dbname=ariadna sslmode=disable
+      - ARIADNA_ES_HOST=http://elasticsearch:9200
+      - ARIADNA_DOWNLOAD_URL=http://download.geofabrik.de/asia/kyrgyzstan-latest.osm.pbf
+      - ARIADNA_FILE_NAME=kyrgyzstan-latest.osm.pbf
+    networks:
+      - ariadna-local
+
+  db:
+    image: mdillon/postgis
+    environment:
+      - POSTGRES_USER=ariadna
+      - POSTGRES_PASSWORD=ariadna
+      - POSTGRES_DB=ariadna
+    networks:
+      - ariadna-local
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch-oss:6.2.2
+    restart: always
+    ports:
+      - 9200:9200
+    volumes:
+      - "./data:/usr/share/elasticsearch/data"
+      - "./elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml"
+    environment:
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - ELASTIC_PASSWORD=kek
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    networks:
+      - ariadna-local
+
+  es-head:
+    image: mobz/elasticsearch-head:5
+    ports:
+      - 9100:9100
+    depends_on:
+      - elasticsearch
+    networks:
+      - ariadna-local
+
+networks:
+  ariadna-local:
+    driver: bridge
