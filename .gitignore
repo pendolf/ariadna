@@ -1,6 +1,5 @@
 *.osm.pbf
 .idea
 db
-*.json
 ariadna
 data/

@@ -1,0 +1,23 @@
+{
+    "settings": {
+        "analysis": {
+            "filter": {},
+            "analyzer": {}
+        }
+    },
+    "mappings": {
+        "streets": {
+            "properties": {
+                "street": {
+                    "type": "text",
+                    "fields": {
+                        "completion": {
+                            "type": "completion"
+                        }
+                    },
+                    "analyzer": "standard"
+                }
+            }
+        }
+    }
+}
