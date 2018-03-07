@@ -1,0 +1,78 @@
+version: '2'
+services:
+
+  ariadna-export-suggest:
+    build:
+      context: .
+    container_name: ariadna-export-suggest
+    command: ariadna update
+    restart: always
+    volumes:
+      - ./suggest.json:/go/src/github.com/pendolf/ariadna/index.json
+    depends_on:
+      - ariadna-db
+      - ariadna-elasticsearch
+    environment:
+      - ARIADNA_ES_INDEX_NAME=streets
+      - ARIADNA_INDEX_TYPE=streets
+      - ARIADNA_PG_CONN_URL=host=ariadna-db user=ariadna password=ariadna dbname=ariadna sslmode=disable
+      - ARIADNA_ES_HOST=http://ariadna-elasticsearch:9200
+      - ARIADNA_DOWNLOAD_URL=http://download.geofabrik.de/asia/kyrgyzstan-latest.osm.pbf
+      - ARIADNA_FILE_NAME=kyrgyzstan-latest.osm.pbf
+    networks:
+      - taxi_local
+
+  ariadna-export-address:
+    build:
+      context: .
+    container_name: ariadna-export-address
+    command: ariadna update
+    restart: always
+    volumes:
+      - ./index.json:/go/src/github.com/pendolf/ariadna/index.json
+    depends_on:
+      - ariadna-db
+      - ariadna-elasticsearch
+    environment:
+      - ARIADNA_ES_INDEX_NAME=addresses
+      - ARIADNA_INDEX_TYPE=address
+      - ARIADNA_PG_CONN_URL=host=ariadna-db user=ariadna password=ariadna dbname=ariadna sslmode=disable
+      - ARIADNA_ES_HOST=http://ariadna-elasticsearch:9200
+      - ARIADNA_DOWNLOAD_URL=http://download.geofabrik.de/asia/kyrgyzstan-latest.osm.pbf
+      - ARIADNA_FILE_NAME=kyrgyzstan-latest.osm.pbf
+    networks:
+      - taxi_local
+
+  ariadna-db:
+    container_name: ariadna-db
+    image: mdillon/postgis
+    environment:
+      - POSTGRES_USER=ariadna
+      - POSTGRES_PASSWORD=ariadna
+      - POSTGRES_DB=ariadna
+    networks:
+      - taxi_local
+
+  ariadna-elasticsearch:
+    container_name: ariadna-elasticsearch
+    image: docker.elastic.co/elasticsearch/elasticsearch-oss:6.2.2
+    restart: always
+    ports:
+      - 127.0.0.1:9200:9200
+    volumes:
+      - "./data:/usr/share/elasticsearch/data"
+      - "./elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml"
+    environment:
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - ELASTIC_PASSWORD=kek
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    networks:
+      - taxi_local
+
+networks:
+  taxi_local:
+    external: true
